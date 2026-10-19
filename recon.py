@@ -80,14 +80,22 @@ def ping_host(host: str, timeout: float) -> HostResult:
     try:
         completed = subprocess.run(
             _ping_command(host, timeout),
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
+            capture_output=True,
+            text=True,
             timeout=timeout + 1,
             check=False,
         )
     except (OSError, subprocess.TimeoutExpired):
         return HostResult(host, False)
-    return HostResult(host, completed.returncode == 0)
+
+    if platform.system().lower() == "windows":
+        output = completed.stdout.lower()
+        target_reply = f"reply from {host}:".lower()
+        reachable = target_reply in output and "destination host unreachable" not in output
+    else:
+        reachable = completed.returncode == 0
+
+    return HostResult(host, reachable)
 
 
 def run_ping_sweep(
